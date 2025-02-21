@@ -34,7 +34,7 @@ const organizationSchema = new Schema (
             type: String,
         },
         otpexpiry: {
-            type: String,
+            type: Date,
         },
         address: {
             type: String,

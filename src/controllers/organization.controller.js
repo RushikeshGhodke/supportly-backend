@@ -44,7 +44,8 @@ const registerOrganization = asyncHandler(async (req, res) => {
     const inviteToken = Math.floor(1000 + Math.random() * 900000); 
 
     console.log(businessname, email, industrytype);
-    
+
+    console.log(otp);
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -103,6 +104,7 @@ const otpverification = asyncHandler(async (req, res) => {
     // Clear OTP and expiry
     existingOrganization.otp = null;
     existingOrganization.otpexpiry = null;
+
 
     await existingOrganization.save();
 

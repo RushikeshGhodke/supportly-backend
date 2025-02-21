@@ -89,8 +89,8 @@ const registerUser = asyncHandler(async (req, res) => {
     // if(!isCreated) {
     //     throw new ApiError(500, "Something went wrong on server");
     // }
-
-    res.status(201).json({ message: "User registered successfully." });
+    const user = await User.findOne({email}).select("-refreshToken");
+    res.status(201).json(new ApiResponse(201, {user}, "User successfully created."));
 
 });
 
