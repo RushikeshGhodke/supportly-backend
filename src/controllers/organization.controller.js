@@ -31,6 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 // };
 
 const registerOrganization = asyncHandler(async (req, res) => {
+    console.log(req.body);
     const { businessname, email, industrytype } = req.body;
 
     if ([businessname, email, industrytype].some((field) => field?.trim() === "")) {
@@ -42,7 +43,7 @@ const registerOrganization = asyncHandler(async (req, res) => {
 
     const inviteToken = Math.floor(1000 + Math.random() * 900000); 
 
-    console.log(otp);
+    console.log(businessname, email, industrytype);
     
 
     const user = await User.findOne({ email });
