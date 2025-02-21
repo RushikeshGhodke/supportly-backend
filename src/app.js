@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import organizationRoutes from "./routes/organization.route.js";
+import userRoutes from "./routes/user.route.js";
 
 const app = express();
 app.use(
@@ -20,5 +22,8 @@ import geminiRoute from "./routes/gemini.route.js";
 
 app.use("/api/v1/test", testRoute);
 app.use("/api/v1/ai", geminiRoute);
+
+app.use("/api/v1/organization",organizationRoutes);
+app.use("/api/v1/user", userRoutes);
 
 export { app };
