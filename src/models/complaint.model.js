@@ -25,7 +25,15 @@ const complaintSchema = new Schema (
                 status: { type: String },
                 changedAt: { type: Date, default: Date.now },
             },
-        ]
+        ],
+        reply: {
+            type: String,
+            default: null,
+        },
+        isEscalated: {
+            type: Boolean,
+            default: false,
+        },
     }, { timestamps: true }
 
 
