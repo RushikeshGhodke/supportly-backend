@@ -19,11 +19,13 @@ app.use(cookieParser());
 
 import testRoute from "./routes/test.route.js";
 import geminiRoute from "./routes/gemini.route.js";
+import complaintsRoute from "./routes/complaints.route.js";
 
 app.use("/api/v1/test", testRoute);
 app.use("/api/v1/ai", geminiRoute);
 
 app.use("/api/v1/organization",organizationRoutes);
 app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/complaints", complaintsRoute);
 
 export { app };
