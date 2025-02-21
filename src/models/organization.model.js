@@ -50,6 +50,10 @@ const organizationSchema = new Schema (
         },
         timezoneto: {
             type: String,
+        },
+        isverified: {
+            type: Boolean,
+            default: false,
         }
 
     }, 

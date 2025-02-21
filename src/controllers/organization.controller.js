@@ -102,6 +102,7 @@ const otpverification = asyncHandler(async (req, res) => {
     // Clear OTP and expiry
     existingOrganization.otp = null;
     existingOrganization.otpexpiry = null;
+    existingOrganization.isverified = true;
 
     await existingOrganization.save();
 
