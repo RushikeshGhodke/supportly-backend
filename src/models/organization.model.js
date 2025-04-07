@@ -1,7 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 const setTotalComplaintsBasedOnPlan = (plan) => {
     switch (plan) {
@@ -19,7 +19,7 @@ const setTotalComplaintsBasedOnPlan = (plan) => {
 };
 
 
-const organizationSchema = new Schema (
+const organizationSchema = new Schema(
     {
         businessname: {
             type: String,
@@ -31,7 +31,7 @@ const organizationSchema = new Schema (
             required: true,
         },
         email: {
-            type: String, 
+            type: String,
             required: true,
             unique: true,
         },
@@ -67,7 +67,7 @@ const organizationSchema = new Schema (
             type: String,
         },
         timezone: {
-            type: String, 
+            type: String,
         },
         timezonefrom: {
             type: String,
@@ -78,11 +78,35 @@ const organizationSchema = new Schema (
         isverified: {
             type: Boolean,
             default: false,
-        }
+        },
+        inviteCode: {
+            type: String,
+            required: true,
+            unique: true
+        },
+        pendingInvitations: [{
+            email: {
+                type: String,
+                required: true
+            },
+            role: {
+                type: String,
+                enum: ["Admin", "Manager", "Member"],
+                default: "Member"
+            },
+            token: {
+                type: String,
+                required: true
+            },
+            expires: {
+                type: Date,
+                required: true
+            }
+        }]
 
-    }, 
-    
-    {timeStamps: true}
+    },
+
+    { timeStamps: true }
 );
 
 organizationSchema.pre("save", async function (next) {

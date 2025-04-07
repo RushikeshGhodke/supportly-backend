@@ -3,35 +3,18 @@ import ApiError from "../utils/ApiError.js";
 import { Organization } from "../models/organization.model.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import nodemailer from "nodemailer";
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import sendEmail from "../utils/emailService.js";
 
-// Create a transporter to send emails
-const transporter = nodemailer.createTransport({
-    service: "Gmail",  // or you can use another email provider like SendGrid, Mailgun, etc.
-    auth: {
-        user: process.env.EMAIL_USER,  // Set your environment variable for email username
-        pass: process.env.EMAIL_PASS,  // Set your environment variable for email password
-    },
-});
-
-// Function to send an OTP email
-const sendEmail = async (email, otp) => {
-
-    console.log("Sending email", email, otp);
-
-
-    try {
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,  // Sender's email address
-            to: email,  // Receiver's email address
-            subject: "Organization Registration OTP",  // Subject of the email
-            text: `Your OTP for organization verification is: ${otp}`,  // OTP message
-        });
-    } catch (error) {
-        console.error("Error sending email:", error);
-        throw new ApiError(500, "Error sending OTP email.");
-    }
+// Generate a unique, readable invite code
+const generateInviteCode = () => {
+    // Create a random base for the code
+    const randomBytes = crypto.randomBytes(4);
+    // Convert to a readable string (alphanumeric, uppercase)
+    const base = randomBytes.toString('hex').toUpperCase();
+    // Format with dashes for readability: XXXX-XXXX
+    return `${base.substring(0, 4)}-${base.substring(4, 8)}`;
 };
 
 const registerOrganization = asyncHandler(async (req, res) => {
@@ -81,7 +64,6 @@ const registerOrganization = asyncHandler(async (req, res) => {
     res.status(201).json(new ApiResponse(201, { newOrganization }, "Organization registered and linked to user"));
 });
 
-
 const otpverification = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
 
@@ -119,126 +101,203 @@ const otpverification = asyncHandler(async (req, res) => {
     res.status(200).json({ message: "OTP verified successfully" });
 });
 
+const getOrganizationInfo = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
 
-// const loginOrganization = asyncHandler(async (req, res) => {
-//     const {name, email, password} = req.body;
+    // Get the user with their organization ID
+    const user = await User.findById(userId);
 
-//     if(!(name || email)) {
-//         throw new ApiError(400, "OrganizationName or Email is required");
-//     }
+    if (!user || !user.organizationId) {
+        throw new ApiError(404, "User doesn't belong to any organization");
+    }
 
-//     const organization = await Organization.findOne({
-//         $or: [{email}, {name}],
-//     });
+    // Find the organization
+    const organization = await Organization.findById(user.organizationId);
 
-//     if(!organization) {
-//         throw new ApiError(404, "organization does not exist");
-//     }
+    if (!organization) {
+        throw new ApiError(404, "Organization not found");
+    }
 
-//     const isPasswordValid = await organization.isPasswordCorrect(password);
-//     if(!isPasswordValid) {
-//         throw new ApiError(404, "Wrong Password");
-//     }
+    // Return organization details
+    res.status(200).json(
+        new ApiResponse(200, { organization }, "Organization information retrieved successfully")
+    );
+});
 
-//     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(organization._id);
+const inviteTeamMember = asyncHandler(async (req, res) => {
+    const { organizationId } = req.params;
+    const { emails, role } = req.body;
 
-//     const loggedInOrganization = await Organization.findById(organization._id).select("-password -refreshToken");
+    if (!organizationId || !emails || !emails.length) {
+        throw new ApiError(400, "Organization ID and at least one email are required");
+    }
 
-//     const options = {
-//         httpOnly: true,
-//         secure: true,
-//     };
+    const organization = await Organization.findById(organizationId);
+    if (!organization) {
+        throw new ApiError(404, "Organization not found");
+    }
 
-//     return res
-//     .status(200)
-//     .cookie("accessToken", accessToken, options)
-//     .cookie("refreshToken", refreshToken, options)
-//     .json(new ApiResponse(200, {user: loggedInOrganization, accessToken, refreshToken }));
-// });
+    // Get the current user to verify they belong to this organization
+    const userId = req.user._id;
+    const user = await User.findById(userId);
 
+    if (!user || user.organizationId.toString() !== organizationId) {
+        throw new ApiError(403, "You don't have permission to invite members to this organization");
+    }
 
-// const getInviteLink = async (req, res) => {
-//     const {tenantId} = req.params;
+    const inviteCode = organization.inviteCode;
+    const orgName = organization.businessname;
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-//     try {
-//         const organization = await Organization.findOne({tenantId});
-//         if(!organization) {
-//             return res.status(400).json({error: 'Organization not found'});
-//         }
+    const results = [];
 
-//         const inviteLink = `${process.env.localhost/5173}/register?inviteToken=${organization.inviteToken}`;
+    // Process each email
+    for (const email of emails) {
+        // Create unique invite link with token
+        const inviteToken = uuidv4();
+        const inviteLink = `${baseUrl}/join?token=${inviteToken}&org=${organizationId}&role=${role}`;
 
-//         res.status(200).json({
-//             message: 'Invitation link retrived successfully.',
-//             inviteLink
-//         });
-//     } catch(error) {
-//         console.error('Error retrieving invitation link:', error);
-//         res.status(500).json({error: 'Internal server error'})
-//     }
-// };
+        // Store the invitation in the organization
+        organization.pendingInvitations = organization.pendingInvitations || [];
+        organization.pendingInvitations.push({
+            email,
+            role,
+            token: inviteToken,
+            expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        });
 
-// const loginViaInvitedLink = asyncHandler(async (req, res) => {
-//     const {tenantId, email, password} = req.body;
-//     if(!(email || password)) {
-//         throw new ApiError(400, "Email and password are required");
-//     }
+        // Send invitation email
+        try {
+            // If you have an email service set up
+            await sendEmail(
+                email,
+                'teamInvite',
+                {
+                    orgName,
+                    inviteCode,
+                    inviteLink
+                }
+            );
+            results.push({ email, sent: true });
+        } catch (error) {
+            console.error(`Failed to send invitation to ${email}:`, error);
+            results.push({ email, sent: false, error: error.message });
+        }
+    }
 
-//     const organization = await Organization.findOne({email});
+    await organization.save();
 
-//     if(!organization) {
-//         throw new ApiError(404, "Organization not found");
-//     }
+    res.status(200).json(
+        new ApiResponse(200, { results }, "Invitations processed")
+    );
+});
 
-//     const isPasswordValid = await organization.isPasswordCorrect(password);
-//     if(!isPasswordValid) {
-//         throw new ApiError(401, "Invalid Password");
-//     }
+// Add the missing joinOrganization function if it doesn't exist
+const joinOrganization = asyncHandler(async (req, res) => {
+    const { inviteToken, inviteCode, organizationId } = req.body;
+    const userId = req.user._id;
 
-//     const { accessToken, refreshToken} = await generateAccessAndRefreshToken(organization._id);
+    let organization;
 
-//     const options = {
-//         httpOnly: true,
-//         secure: true
-//     }
-//      return res
-//         ,status(200)
-//         .cookie("accessToken", accessToken, options)
-//         .cookie("refreshToken", refreshToken, options)
-//         .json(new ApiResponse(200, {user: organization, accessToken, refreshToken}));
-// });
+    // User is trying to join via invite token
+    if (inviteToken && organizationId) {
+        organization = await Organization.findById(organizationId);
+        if (!organization) {
+            throw new ApiError(404, "Organization not found");
+        }
 
-// const logoutOrganization = asyncHandler(async( req, res) => {
-//     await Organization.findByIdAndUpate(
-//         req.organization._id,
-//         {
-//             $unset: {
-//                 refreshToken: 1,
-//             },
-//         },
-//         {
-//             new: true,
-//         }
-//     );
-//     const options = {
-//         httpOnly: true,
-//         secure: true,
-//     };
+        // Find the invitation with this token
+        const inviteIndex = organization.pendingInvitations.findIndex(
+            invite => invite.token === inviteToken && new Date() < invite.expires
+        );
 
-//     return res 
-//         .status(200)
-//         .clearCookie("accessToken", options)
-//         .clearCookie("refreshToken", options)
-//         .json(new ApiResponse(200, {}, "User logged out"));
-// });
+        if (inviteIndex === -1) {
+            throw new ApiError(400, "Invalid or expired invitation");
+        }
 
+        // Get the role from the invitation
+        const role = organization.pendingInvitations[inviteIndex].role;
 
+        // Remove the used invitation
+        organization.pendingInvitations.splice(inviteIndex, 1);
+        await organization.save();
 
+        // Update user with organization and role
+        await User.findByIdAndUpdate(userId, {
+            organizationId,
+            role
+        });
+
+        return res.status(200).json(
+            new ApiResponse(200, { organization }, "Joined organization successfully")
+        );
+    }
+
+    // User is trying to join via invite code
+    if (inviteCode) {
+        organization = await Organization.findOne({ inviteCode });
+        if (!organization) {
+            throw new ApiError(404, "Invalid organization code");
+        }
+
+        // Update user with organization
+        await User.findByIdAndUpdate(userId, {
+            organizationId: organization._id,
+            role: "Member" // Default role when joining with code
+        });
+
+        return res.status(200).json(
+            new ApiResponse(200, { organization }, "Joined organization successfully")
+        );
+    }
+
+    throw new ApiError(400, "Either invite token or invite code is required");
+});
+
+// Add the missing resendOTP function if it doesn't exist
+const resendOTP = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const organization = await Organization.findOne({ email });
+    if (!organization) {
+        throw new ApiError(404, "Organization not found");
+    }
+
+    // Generate a new OTP
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpexpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    // Update the organization with new OTP
+    organization.otp = otp;
+    organization.otpexpiry = otpexpiry;
+    await organization.save();
+
+    // Send the new OTP via email
+    try {
+        await sendEmail(
+            email,
+            'otp',
+            otp
+        );
+
+        res.status(200).json(
+            new ApiResponse(200, {}, "New OTP sent to your email")
+        );
+    } catch (error) {
+        throw new ApiError(500, "Failed to send OTP email");
+    }
+});
+
+// Fix your export statement to match your imports
 export {
     registerOrganization,
-    otpverification
-    // getInviteLink,
-    // loginOrganization,
-    // loginViaInvitedLink,
-    // logoutOrganization
+    otpverification, // Fix case mismatch
+    getOrganizationInfo,
+    inviteTeamMember,
+    joinOrganization,  // Add missing export
+    resendOTP          // Add missing export
 };

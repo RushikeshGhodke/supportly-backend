@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
     registerOrganization,
-    otpVerification,
+    otpverification,
     resendOTP,
     inviteTeamMember,
     joinOrganization,
@@ -13,7 +13,7 @@ const router = Router();
 
 // Public routes
 router.route("/register").post(registerOrganization);
-router.route("/otpverification").post(otpVerification);
+router.route("/otpverification").post(otpverification);
 router.route("/resend-otp").post(resendOTP);
 
 // Protected routes
