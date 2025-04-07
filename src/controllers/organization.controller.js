@@ -1,51 +1,54 @@
 import asyncHandler from "../utils/asyncHandler.js";
-import ApiError from "../utils/ApiError.js"
+import ApiError from "../utils/ApiError.js";
 import { Organization } from "../models/organization.model.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
-import nodemailer from "nodemailer"
-import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
 import { v4 as uuidv4 } from 'uuid';
 
+// Create a transporter to send emails
+const transporter = nodemailer.createTransport({
+    service: "Gmail",  // or you can use another email provider like SendGrid, Mailgun, etc.
+    auth: {
+        user: process.env.EMAIL_USER,  // Set your environment variable for email username
+        pass: process.env.EMAIL_PASS,  // Set your environment variable for email password
+    },
+});
 
-// const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+// Function to send an OTP email
+const sendEmail = async (email, otp) => {
 
-// const sendEmail = async (email, otp) => {
-//     const transporter = nodemailer.createTransport({
-//         service: "Gmail",
-//         auth: {
-//             user: process.env.EMAIL_USERNAME,
-//             pass: process.env.EMAIL_PASSWORD,
-//         },
-//     });
+    console.log("Sending email", email, otp);
 
-//     await transporter.sendMail({
-//         from: process.env.EMAIL_USERNAME,
-//         to: email,
-//         subject: "Organization Registration OTP",
-//         text: `Your OTP for organization verification is: ${otp}`,
-//       });
-// };
+
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,  // Sender's email address
+            to: email,  // Receiver's email address
+            subject: "Organization Registration OTP",  // Subject of the email
+            text: `Your OTP for organization verification is: ${otp}`,  // OTP message
+        });
+    } catch (error) {
+        console.error("Error sending email:", error);
+        throw new ApiError(500, "Error sending OTP email.");
+    }
+};
 
 const registerOrganization = asyncHandler(async (req, res) => {
     console.log(req.body);
-    const { businessname, email, industrytype } = req.body;
+    const { businessname, email, industrytype, selectedPlan } = req.body;
 
     if ([businessname, email, industrytype].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All fields are required");
     }
 
-    const otp = Math.floor(1000 + Math.random() * 9000); // Generate 6-digit OTP
+    const otp = Math.floor(1000 + Math.random() * 9000); // Generate 4-digit OTP
     const otpexpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
-    const inviteToken = Math.floor(1000 + Math.random() * 900000); 
+    const inviteToken = uuidv4(); // Use UUID for invite token (could be any unique identifier)
 
     console.log(businessname, email, industrytype);
-
-    console.log(otp);
+    console.log("Generated OTP:", otp);
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -54,27 +57,30 @@ const registerOrganization = asyncHandler(async (req, res) => {
 
     const existingOrganization = await Organization.findOne({ email });
     if (existingOrganization) {
-        throw new ApiError(409, "organization already exist");
+        throw new ApiError(409, "Organization already exists");
     }
 
+    // Send OTP email to the user
+    await sendEmail(email, otp);
 
-
+    // Create a new organization with the provided data
     const newOrganization = await Organization.create({
         businessname,
         email: user.email,
         password: user.password,
         industrytype,
+        plan: selectedPlan,
         otp,
         otpexpiry,
         inviteToken,
     });
 
-    user.organizationId = newOrganization._id;
+    user.organizationId = newOrganization._id;  // Link user with the newly created organization
     await user.save();
 
-    res.status(201).json({ message: "Organization registered and linked to user" });
-
+    res.status(201).json(new ApiResponse(201, { newOrganization }, "Organization registered and linked to user"));
 });
+
 
 const otpverification = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;

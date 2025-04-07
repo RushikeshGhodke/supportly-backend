@@ -2,6 +2,23 @@ import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import {v4 as uuidv4} from 'uuid';
+
+const setTotalComplaintsBasedOnPlan = (plan) => {
+    switch (plan) {
+        case 'Free':
+            return 50;
+        case 'Starter':
+            return 500;
+        case 'Pro':
+            return 5000;
+        case 'Enterprise':
+            return 'Unlimited'; // You can store "Unlimited" as a string or as null to represent no limit.
+        default:
+            return 0; // Default case if plan is not set correctly
+    }
+};
+
+
 const organizationSchema = new Schema (
     {
         businessname: {
@@ -21,6 +38,13 @@ const organizationSchema = new Schema (
         plan: {
             type: String,
             enum: ['Free', 'Starter', 'Pro', 'Enterprise'],
+        },
+        totalComplaints: {
+            type: String,
+        },
+        usedComplaints: {
+            type: Number,
+            default: 0,
         },
         industrytype: {
             type: String,
@@ -61,5 +85,11 @@ const organizationSchema = new Schema (
     {timeStamps: true}
 );
 
+organizationSchema.pre("save", async function (next) {
+    if (this.plan) {
+        this.totalComplaints = setTotalComplaintsBasedOnPlan(this.plan);
+    }
+    next();
+})
 
 export const Organization = new mongoose.model("Organization", organizationSchema);

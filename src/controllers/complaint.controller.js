@@ -2,9 +2,14 @@ import asyncHandler from "../utils/asyncHandler.js";
 import {generationConfig, model} from "./gemini.controller.js";
 import {Complaint} from "../models/complaint.model.js";
 import {response} from "express";
+import {Organization} from "../models/organization.model.js";
+import {ApiResponse} from "../utils/ApiResponse.js";
 
 export const registerComplaint = asyncHandler(async (req, res) => {
     const { tenantId, customerName, email, complaint } = req.body;
+
+    console.log(tenantId);
+
 
     // Start a new chat session with the model
     const chatSession = model.startChat({
@@ -46,10 +51,22 @@ export const registerComplaint = asyncHandler(async (req, res) => {
 
     await newComplaint.save();
 
+    const organization = await Organization.findById(tenantId);
+    if (!organization) {
+        return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    let count = parseInt(organization.usedComplaints) + 1;
+    organization.usedComplaints = count;
+
+    // console.log(count)
+    await organization.save();
+
+
     // Log the details for debugging purposes
-    console.log(tenantId, customerName, email, complaint, parsedResult);
+    // console.log(tenantId, customerName, email, complaint, parsedResult);
 
     // Return the necessary data as a JSON response, including the validated result
-    res.status(200).json({ tenantId, customerName, email, complaint, result: parsedResult });
+    res.status(200).json(new ApiResponse(201, {newComplaint}, "New Complaint Result."));
 });
 
