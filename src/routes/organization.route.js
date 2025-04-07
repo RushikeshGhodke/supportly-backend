@@ -1,22 +1,24 @@
-import {Router} from "express";
+import { Router } from "express";
 import {
     registerOrganization,
-    otpverification
-    // getInviteLink,
-    // loginOrganization,
-    // loginViaInvitedLink,
-    // logoutOrganization
+    otpVerification,
+    resendOTP,
+    inviteTeamMember,
+    joinOrganization,
+    getOrganizationInfo
 } from "../controllers/organization.controller.js";
-import {verifyJWT} from "../middleware/auth.middleware.js";
+import { verifyJWT } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
+// Public routes
 router.route("/register").post(registerOrganization);
-router.route("/otpverification").post(otpverification);
+router.route("/otpverification").post(otpVerification);
+router.route("/resend-otp").post(resendOTP);
 
-// router.route("/login").post(loginOrganization);
-// router.route("/login/invite").post(loginViaInvitedLink);
-// router.route("/invite/:tenantId").get(getInviteLink);
-// router.route("logout").post(verifyJWT, logoutOrganization);
+// Protected routes
+router.route("/invite/:organizationId").post(verifyJWT, inviteTeamMember);
+router.route("/join").post(verifyJWT, joinOrganization);
+router.route("/info").get(verifyJWT, getOrganizationInfo);
 
-export default router; 
+export default router;
