@@ -1,8 +1,8 @@
-import mongoose, {Schema} from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-const userSchema = new Schema (
+const userSchema = new Schema(
     {
         fullname: {
             type: String,
@@ -15,34 +15,21 @@ const userSchema = new Schema (
         },
         role: {
             type: String,
-            enum: ["Admin", "User"],
-            default: "User",
-        },
-        organizationId: {
-            type: Schema.Types.ObjectId,
-            ref: "Organization",
+            enum: ["Admin", "Agent"],
+            default: "Agent",
         },
         password: {
             type: String,
             required: true,
         },
-        otp: {
-            type: String,
-        },
-        expirytime: {
-            type: Date,
-        },
         refreshToken: {
             type: String,
         },
-
-    }, 
-    
-    {timestamps: true}
-
+    },
+    { timestamps: true }
 )
 
-
+// Keep existing methods for password verification and token generation
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) return next();
     this.password = await bcrypt.hashSync(this.password, 10);
@@ -54,12 +41,9 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 };
 
 userSchema.methods.generateAccessToken = function () {
-    console.log("Called 71");
-    
     return jwt.sign(
         {
             _id: this._id,
-            username: this.username,
             fullname: this.fullname,
             email: this.email,
             role: this.role,
@@ -82,6 +66,5 @@ userSchema.methods.generateRefreshToken = function () {
         }
     );
 };
-
 
 export const User = new mongoose.model("User", userSchema);

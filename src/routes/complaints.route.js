@@ -1,21 +1,30 @@
-import { Router } from 'express'
-import {registerComplaint,
+import { Router } from 'express';
+import {
+    registerComplaint,
     getAllComplaints,
+    getComplaintById,
+    assignComplaint,
     addReply,
     markAsResolved,
     markAsEscalate,
     getEscalatedComplaints,
+    getDashboardStats
 } from "../controllers/complaint.controller.js";
-// import { isAuthenticated, isAdmin } from "../middleware/auth.middleware.js";
+import { verifyJWT } from "../middleware/auth.middleware.js";
 
-const router = Router()
+const router = Router();
 
-router.route('/registerComplaint').post(registerComplaint);
-router.route('/getAllComplaints').get(getAllComplaints);
-router.route('/addReply/:complaintId').put(addReply);
-router.route('/resolved/:complaintId').put(markAsResolved);
-router.route('/escalate/:complaintId').put(markAsEscalate);
-router.route('/escalated').get(getEscalatedComplaints);
+// Public route for registering complaints (can be used by website forms)
+router.route('/register').post(registerComplaint);
 
+// Protected routes for complaint management
+router.route('/').get(verifyJWT, getAllComplaints);
+router.route('/dashboard').get(verifyJWT, getDashboardStats);
+router.route('/escalated').get(verifyJWT, getEscalatedComplaints);
+router.route('/:complaintId').get(verifyJWT, getComplaintById);
+router.route('/:complaintId/assign').post(verifyJWT, assignComplaint);
+router.route('/:complaintId/reply').post(verifyJWT, addReply);
+router.route('/:complaintId/resolve').put(verifyJWT, markAsResolved);
+router.route('/:complaintId/escalate').put(verifyJWT, markAsEscalate);
 
 export default router;

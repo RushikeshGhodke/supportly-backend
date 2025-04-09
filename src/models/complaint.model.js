@@ -1,28 +1,71 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import mongoose, {Schema} from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-const complaintSchema = new Schema (
+const complaintSchema = new Schema(
     {
-        organizationId: {
+        customerName: {
+            type: String,
+            required: true
+        },
+        email: {
+            type: String,
+            required: true
+        },
+        complaint: {
+            type: String,
+            required: true
+        },
+        channel: {
+            type: String,
+            enum: ["Web", "Email", "Social", "Chat"],
+            default: "Web"
+        },
+        type: {
+            type: String,
+            default: "General"
+        },
+        issue: {
+            type: String,
+            default: "Uncategorized"
+        },
+        priorityScore: {
+            type: Number,
+            default: 3
+        },
+        sentiment: {
+            type: String,
+            default: "Neutral"
+        },
+        status: {
+            type: String,
+            enum: ["Pending", "InProgress", "Resolved", "Escalated"],
+            default: "Pending"
+        },
+        assignedTo: {
             type: Schema.Types.ObjectId,
-            ref: "Organization",
-        }, // Auto-assigned from URL
-        customerName: { type: String, required: true },
-        email: { type: String, required: true },
-        complaint: { type: String, required: true },
-        type: { type: String, default: "General" }, // AI will update this
-        issue: { type: String, default: "Uncategorized" }, // AI will update this
-        priorityScore: { type: Number, default: 3 }, // AI will update this
-        sentiment: { type: String, default: "Neutral" }, // AI will update this
-        status: { type: String, enum: ["Pending", "Resolved", "Escalated"], default: "Pending" },
-        complaintRegistrationTime: { type: Date, default: Date.now },
-        complaintResolveTime: { type: Date, default: null }, // Updated when resolved
-        resolvedBy: { type: String, default: null }, // Stores resolver's name
-        attachments: [{ type: String }], // URLs for uploaded files/screenshots
+            ref: "User",
+            default: null
+        },
+        complaintRegistrationTime: {
+            type: Date,
+            default: Date.now
+        },
+        complaintResolveTime: {
+            type: Date,
+            default: null
+        },
+        resolvedBy: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
+        attachments: [{
+            type: String
+        }],
         history: [
             {
                 status: { type: String },
+                comment: { type: String },
+                changedBy: { type: Schema.Types.ObjectId, ref: "User" },
                 changedAt: { type: Date, default: Date.now },
             },
         ],
@@ -34,9 +77,8 @@ const complaintSchema = new Schema (
             type: Boolean,
             default: false,
         },
-    }, { timestamps: true }
-
-
+    },
+    { timestamps: true }
 );
 
-export const Complaint = new mongoose.model("Complaint", complaintSchema);
+export const Complaint = mongoose.model("Complaint", complaintSchema);
